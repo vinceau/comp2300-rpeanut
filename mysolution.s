@@ -7,9 +7,7 @@
 0x0100: load #0 R0
 	push R0 ;fill status
 	
-main:	jump pixel
-	halt
-	load 0xfff1 R0
+main:	load 0xfff1 R0
 	jumpz R0 main
 	load 0xfff0 R0 ;input character
 
@@ -48,7 +46,7 @@ casec:	;case input = c
 	store R1 #0 SP
 	jump main
 
-casep:	;case input =p
+casep:	;case input = p
 	load #0x70 R1
 	sub R0 R1 R1
 	jumpz R1 pixel
@@ -56,7 +54,12 @@ casep:	;case input =p
 pixel:	load #0 R1
 	push R1 ;result input 1 (x coord)
 	call gdi
-	pop R5
+	load #0 R1
+	push R1 ;result input 2 (y coord)
+	call gdi
+	call draw
+	pop R0 ;pop y coord
+	pop R0 ;pop x coord
 	jump main
 
 done:	pop R7 ;remove fill status
@@ -147,15 +150,15 @@ hj:	load SP #-2 R0
 ;#0    : input char 2
 ;#-1   : input char 1/return val for ctx on input char 2
 ;#-2   : return value for ctx on input char 1
-;#-3/0 : return value for hj (write to return value)
-;#-4/-1: return address
-;#-5/-2: return value
+;#-3   : return value for hj (write to return value)
+;#-4/0 : return address
+;#-5/-1: return value
 
 gdi:	load #0 R1
 	push R1 ;return value for hj
 	push R1 ;return value for ctx
-	load 0xfff1 R1
-	jumpz R1 gdi
+gdi1:	load 0xfff1 R1
+	jumpz R1 gdi1
 	load 0xfff0 R1 ;input character
 	push R1
 	call ctx
@@ -169,7 +172,6 @@ gdi2:	load 0xfff1 R1
 	call hj
 	pop R1 ;pop char
 	pop R1 ;pop char
-	load SP #0 R1 ;R1 = hj return
-	store R1 #-2 SP
-	pop R1 ;pop hj return value
+	pop R5 ;R5 = hj return value
+	store R5 #-1 SP
 	return
