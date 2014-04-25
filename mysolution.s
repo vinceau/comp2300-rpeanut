@@ -178,3 +178,33 @@ gdi2:   load 0xfff1 R1
         pop R5 ;R5 = hj return value
         store R5 #-1 SP
         return
+
+;absolute (abs): turns a number on the stack into its absolute value
+;stack pane:
+;#0 : return address
+;#-1: number
+abs:    load SP #-1 R0
+        sub ZERO R0 R0
+        jumpn R0 absend
+        store R0 #-1 SP
+absend: return
+
+
+;line: draws a line
+;stack frame:
+;#2 : dy
+;#1 : dx
+;#0 : return address
+;#-1: y1
+;#-2: x1
+;#-3: y0
+;#-4: x0
+
+line:   load SP #-2 R0 ;R0 = x1
+        load SP #-4 R1 ;R1 = x0
+        sub R0 R1 R0 ;R0 = x1 - x0
+        
+        ;load SP #-1 R1
+        ;add R0 R1 R0
+        ;store R0 #-3 SP
+        return
