@@ -6,6 +6,7 @@
 
 0x0100: load #0 R0
         push R0 ;fill status
+        ;0 empty, -1 filled, 1 contains drawing
         
 main:   load 0xfff1 R0
         jumpz R0 main
@@ -24,13 +25,12 @@ main:   load 0xfff1 R0
         jumpnz R1 casec
 
         load SP #0 R1 ;check fill status
-        jumpnz R1 main
-        load #0xffffffff R1
-        push R1
+        jumpn R1 main
+        load #-1 R1 ; -1 = 0xffffffff
+        store R1 #0 SP ;change fill status
+        push R1 ;push bit pattern
         call fill
-        pop R1
-        load #1 R1
-        store R1 #0 SP
+        pop R1 ;pop bit pattern
         jump main
 
         ; CLEAR
@@ -54,15 +54,16 @@ casep:  ;case input = p
         load #0x70 R1
         sub R0 R1 R1
         jumpnz R1 casel
-        load #0 R1
-        push R1 ;result input 1 (x coord)
+        push R1 ;placeholder for x coord
         call gdi
-        load #0 R1
-        push R1 ;result input 2 (y coord)
+        push R1 ;placeholder for y coord
         call gdi
         call draw
         pop R0 ;pop y coord
         pop R0 ;pop x coord
+
+        load #1 R1 ;change fill status
+        store R1 #0 SP
         jump main
 
         ; LINE
@@ -70,9 +71,9 @@ casel:  ;case input = l
         load #0x6c R1
         sub R0 R1 R1
         jumpnz R1 main
-        push R1 ;placeholder result for x1
+        push R1 ;placeholder for x1
         call gdi
-        push R1 ;placeholder result for y1
+        push R1 ;placeholder for y1
         call gdi
         push R1 ;placeholder result for x2
         call gdi
@@ -83,6 +84,9 @@ casel:  ;case input = l
         pop R0 ;x2
         pop R0 ;y1
         pop R0 ;x1
+
+        load #1 R1 ;change fill status
+        store R1 #0 SP
         jump main
 
 done:   pop R7 ;remove fill status
@@ -170,10 +174,10 @@ hj:     load SP #-2 R0
 ;get double input (gdi): listens for two character inputs
 ;as hex and joins them together into the return value
 ;stack frame:
-;#4 : input char 2
-;#3 : input char 1/return val for ctx on input char 2
-;#2 : return value for ctx on input char 1
-;#1 : return value for hj (write to return value)
+;-- : input char 2
+;-- : input char 1/return val for ctx on input char 2
+;-- : return value for ctx on input char 1
+;-- : return value for hj (write to return value)
 ;#0 : return address
 ;#-1: return value
 
@@ -212,18 +216,18 @@ absend: return
 
 ;line: draws a line
 ;stack frame:
-;#7 \2 \1  \0  : y0 (modified)
-;#6 \1 \0  \-1 : x0 (modified)
-;#5 \0 \-1 \-2 : err
-;#4 \-1\-2 \-3 : sy
-;#3 \-2\-3 \-4 : sx
-;#2 \-3\-4 \-5 : dy
-;#1 \-4\-5 \-6 : dx
-;#0 \-5\-6 \-7 : return address
-;#-1\-6\-7 \-8 : y1
-;#-2\-7\-8 \-9 : x1
-;#-3\-8\-9 \-10: y0 (original)
-;#-4\-9\-10\-11: x0 (original)
+;-- |--|-- |0  : y0 (modified)
+;-- |--|0  |-1 : x0 (modified)
+;-- |0 |-1 |-2 : err
+;-- |-1|-2 |-3 : sy
+;-- |-2|-3 |-4 : sx
+;-- |-3|-4 |-5 : dy
+;-- |-4|-5 |-6 : dx
+;#0 |-5|-6 |-7 : return address
+;#-1|-6|-7 |-8 : y1
+;#-2|-7|-8 |-9 : x1
+;#-3|-8|-9 |-10: y0 (original)
+;#-4|-9|-10|-11: x0 (original)
 
 line:   load #0 R0
         push R0 ;dx
@@ -333,4 +337,26 @@ line6:  call draw ;setPixel
         pop R0 ;pop sx
         pop R0 ;pop dy
         pop R0 ;pop dx
+        return
+
+;bit pattern maker (bpm): takes an integer x and generates a 32 bit pattern of x 1s left aligned.
+;e.g. 4 becomes 111100000000...
+;stack frame:
+;#0 : return address
+;#-1: input integer e.g. 4
+;#-2: return value e.g. 11110000000...
+
+bpm:    load SP #-1 R0
+        load #31 R7
+        sub R7 R0 R7
+        load #0 R1
+        jump bpm1
+bpm0:   load #1 R2
+        sub R0 ONE R0
+        rotate R0 R2 R2
+        or R1 R2 R1
+        jumpn R1 bpm2
+bpm1:   jumpnz R0 bpm0
+        rotate R7 R1 R2
+bpm2:   store R2 #-2 SP
         return
