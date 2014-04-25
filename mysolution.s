@@ -53,7 +53,7 @@ casec:  ;case input = c
 casep:  ;case input = p
         load #0x70 R1
         sub R0 R1 R1
-        jumpnz R1 main
+        jumpnz R1 casel
         load #0 R1
         push R1 ;result input 1 (x coord)
         call gdi
@@ -63,6 +63,26 @@ casep:  ;case input = p
         call draw
         pop R0 ;pop y coord
         pop R0 ;pop x coord
+        jump main
+
+        ; LINE
+casel:  ;case input = l
+        load #0x6c R1
+        sub R0 R1 R1
+        jumpnz R1 main
+        push R1 ;placeholder result for x1
+        call gdi
+        push R1 ;placeholder result for y1
+        call gdi
+        push R1 ;placeholder result for x2
+        call gdi
+        push R1 ;placeholder result for y2
+        call gdi
+        call line
+        pop R0 ;y2
+        pop R0 ;x2
+        pop R0 ;y1
+        pop R0 ;x1
         jump main
 
 done:   pop R7 ;remove fill status
