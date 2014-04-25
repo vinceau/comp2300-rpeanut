@@ -192,19 +192,125 @@ absend: return
 
 ;line: draws a line
 ;stack frame:
-;#2 : dy
-;#1 : dx
-;#0 : return address
-;#-1: y1
-;#-2: x1
-;#-3: y0
-;#-4: x0
+;#7 \2 \1  \0  : y0 (modified)
+;#6 \1 \0  \-1 : x0 (modified)
+;#5 \0 \-1 \-2 : err
+;#4 \-1\-2 \-3 : sy
+;#3 \-2\-3 \-4 : sx
+;#2 \-3\-4 \-5 : dy
+;#1 \-4\-5 \-6 : dx
+;#0 \-5\-6 \-7 : return address
+;#-1\-6\-7 \-8 : y1
+;#-2\-7\-8 \-9 : x1
+;#-3\-8\-9 \-10: y0 (original)
+;#-4\-9\-10\-11: x0 (original)
 
-line:   load SP #-2 R0 ;R0 = x1
-        load SP #-4 R1 ;R1 = x0
-        sub R0 R1 R0 ;R0 = x1 - x0
+line:   load #0 R0
+        push R0 ;dx
+        push R0 ;dy
+        push R0 ;sx
+        push R0 ;sy
+        push R0 ;err
+        load SP #-9 R0 ;R0 = x0
+        push R0 ;x0
+        load SP #-9 R1 ;R0 = y0
+        push R0 ;y0
+
+        ;dx = abs(x1-x0)
+        load SP #-1 R0 ;R0 = x0
+        load SP #-9 R1 ;R1 = x1
+        sub R1 R0 R0 ;R0 = x1 - x0
+        jumpn R0 line0
+        jumpz R0 line0
+        ; if x0 < x1
+        load #1 R7
+        jump line1
+        ; else
+line0:  load #-1 R7
+line1:  store R7 #-4 SP ; update sx
+        push R0 ; pushed dx
+        call abs
+        pop R0 ; pop abs(dx)
+        store R0 #-6 SP ;update dx
+       
+        ;dy = abs(y1 - y0)
+        load SP #0 R0 ;R0 = y0
+        load SP #-8 R1 ;R1 = y1
+        sub R1 R0 R0 ;R0 = y1 - y0
+        jumpn R0 line2
+        jumpz R0 line2
+        ; if y0 < y1
+        load #1 R7
+        jump line3
+        ; else
+line2:  load #-1 R7
+line3:  store R7 #-3 SP ; update sy
+        push R0 ; pushed dy
+        call abs
+        pop R0 ;pop abs(dy) into R0
+        store R0 #-5 SP
+       
+        load SP #-6 R1 ;R1 = dx
+        sub R1 R0 R0 ;R0 = dx - dy
+        store R0 #-2 SP; update err
+
+        ;start loop
+        jump line6
+
+        ;if e2 > - dy
+line4:  load SP #-2 R0 ;R0 = err
+        add R0 R0 R1 ;(e2) R1 = 2 * err
+        load SP #-5 R2 ;R2 = dy
+        add R1 R2 R3 ;R3 = dy + e2
+        jumpn R3 line5
+        jumpz R3 line5
+        ;err := err - dy
+        sub R0 R2 R2 ;R2 = err - dy
+        store R2 #-2 SP ;update err
+
+        ;x0 := x0 + sx
+        load SP #-1 R2 ;R2 = x0
+        load SP #-4 R3 ;R3 = sx
+        add R2 R3 R2 ;R2 = x0 + sx
+        store R2 #-1 SP ;update x0
         
-        ;load SP #-1 R1
-        ;add R0 R1 R0
-        ;store R0 #-3 SP
+        ;if e2 < dx
+line5:  load SP #-2 R0 ;R0 = err
+        add R0 R0 R1 ;(e2) R1 = 2 * err
+        load SP #-6 R2 ;R2 = dx
+        sub R2 R1 R3 ;R3 = dx - e2
+        jumpn R3 line6 ;go back to loop
+        jumpz R3 line6
+        ; err := err + dx
+        add R0 R2 R2 ;R2 = err + dx
+        store R2 #-2 SP ;update err
+        
+        ; y0 := y0 + sy
+        load SP #0 R0 ;R0 = y0
+        load SP #-3 R1 ;R1 = sy
+        add R0 R1 R1 ;R1 = y0 + sy
+        store R1 #0 SP ;update y0
+
+        ;loop again
+line6:  call draw ;setPixel
+
+        ;conditional
+        load SP #-1 R0  ;R0 = x0
+        load SP #-9 R1 ;R1 = x1
+        sub R1 R0 R0 ;R0 = x1 - x0
+        jumpnz R0 line4 ;if x1 != x0
+        
+        ;if x1 == x0
+        load SP #0 R0  ;R0 = y0
+        load SP #-8 R1 ;R1 = y1
+        sub R1 R0 R0 ;R0 = x1 - x0
+        jumpnz R0 line4 ;loop if y1 != y0
+        ; exit loop
+        pop R0 ;y0
+        pop R0 ;x0
+        pop R0 ;pop err
+        pop R0 ;pop sy
+        pop R0 ;pop sx
+        pop R0 ;pop dy
+        pop R0 ;pop dx
         return
