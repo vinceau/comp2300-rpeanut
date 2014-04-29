@@ -40,18 +40,26 @@ mend
 main:   load 0xfff1 R0
         jumpz R0 main
         load 0xfff0 R0 ;input character
-
-        ; HALT
         ;case input = h
         load #0x68 R1
         jumpeq R0 R1 done
-
-        ; FILL
         ;case input = f
         load #0x66 R1
-        jumpneq R0 R1 casec
+        jumpeq R0 R1 casef
+        ;case input = c
+        load #0x63 R1
+        jumpeq R0 R1 casec
+        ;case input = p
+        load #0x70 R1
+        jumpeq R0 R1 casep
+        ;case input = l
+        load #0x6c R1
+        jumpeq R0 R1 casel
+        ;else
+        jump main
 
-        load SP #0 R1 ;check fill status
+        ; FILL
+casef:  load SP #0 R1 ;check fill status
         jumpn R1 main ;-1 = already filled
         store MONE #0 SP ;change fill status to -1
         push MONE ;push bit pattern, -1 = 0xffffffff
@@ -60,11 +68,7 @@ main:   load 0xfff1 R0
         jump main
 
         ; CLEAR
-casec:  ;case input = c
-        load #0x63 R1
-        jumpneq R0 R1 casep
-
-        load SP #0 R1 ;check fill status
+casec:  load SP #0 R1 ;check fill status
         jumpz R1 main
         push ZERO
         call fill
@@ -73,10 +77,7 @@ casec:  ;case input = c
         jump main
 
         ; PIXEL
-casep:  ;case input = p
-        load #0x70 R1
-        jumpneq R0 R1 casel
-        push MONE ;placeholder for x coord
+casep:  push MONE ;placeholder for x coord
         call gdi
         push MONE ;placeholder for y coord
         call gdi
@@ -87,16 +88,13 @@ casep:  ;case input = p
         jump main
 
         ; LINE
-casel:  ;case input = l
-        load #0x6c R1
-        jumpneq R0 R1 main
-        push MONE ;placeholder for x1
+casel:  push ZERO ;placeholder for x1
         call gdi
-        push MONE ;placeholder for y1
+        push ZERO ;placeholder for y1
         call gdi
-        push MONE ;placeholder result for x2
+        push ZERO ;placeholder result for x2
         call gdi
-        push MONE ;placeholder result for y2
+        push ZERO ;placeholder result for y2
         call gdi
         call line
         pop MONE ;y2
@@ -106,6 +104,7 @@ casel:  ;case input = l
         store ONE #0 SP ;change fill status
         jump main
 
+        ; HALT
 done:   pop MONE ;remove fill status
         halt
 
