@@ -1,13 +1,42 @@
 ; u5388374 - Vincent Au 2014
 ; COMP2300 Assignment 2
+;
+; Note: R7 is never guaranteed to hold what you want
 
+
+;jump if two registers are equal
+macro
+    jumpeq &reg1 &reg2 &label
+    sub &reg1 &reg2 R7
+    jumpz R7 &label
+mend
+
+;jump if two registers are not equal
+macro
+    jumpneq &reg1 &reg2 &label
+    sub &reg1 &reg2 R7
+    jumpnz R7 &label
+mend
+
+;jump if first register is less than second
+macro
+    jumplt &reg1 &reg2 &label
+    sub &reg1 &reg2 R7
+    jumpn R7 &label
+mend
+
+;jump if first register is less than or equal to the second
+macro
+    jumplte &reg1 &reg2 &label
+    sub &reg1 &reg2 R7
+    jumpn R7 &label
+    jumpz R7 &label
+mend
 
 ; MAIN
-
-0x0100: load #0 R0
-        push R0 ;fill status
+0x0100: push ZERO ;fill status
         ;0 empty, -1 filled, 1 contains drawing
-        
+;        
 main:   load 0xfff1 R0
         jumpz R0 main
         load 0xfff0 R0 ;input character
@@ -15,81 +44,69 @@ main:   load 0xfff1 R0
         ; HALT
         ;case input = h
         load #0x68 R1
-        sub R0 R1 R1
-        jumpz R1 done
+        jumpeq R0 R1 done
 
         ; FILL
         ;case input = f
         load #0x66 R1
-        sub R0 R1 R1
-        jumpnz R1 casec
+        jumpneq R0 R1 casec
 
         load SP #0 R1 ;check fill status
-        jumpn R1 main
-        load #-1 R1 ; -1 = 0xffffffff
-        store R1 #0 SP ;change fill status
-        push R1 ;push bit pattern
+        jumpn R1 main ;-1 = already filled
+        store MONE #0 SP ;change fill status to -1
+        push MONE ;push bit pattern, -1 = 0xffffffff
         call fill
-        pop R1 ;pop bit pattern
+        pop MONE ;pop bit pattern
         jump main
 
         ; CLEAR
 casec:  ;case input = c
         load #0x63 R1
-        sub R0 R1 R1
-        jumpnz R1 casep
+        jumpneq R0 R1 casep
 
         load SP #0 R1 ;check fill status
         jumpz R1 main
-        load #0 R1
-        push R1
+        push ZERO
         call fill
-        pop R1
-        load #0 R1
-        store R1 #0 SP
+        pop MONE
+        store ZERO #0 SP
         jump main
 
         ; PIXEL
 casep:  ;case input = p
         load #0x70 R1
-        sub R0 R1 R1
-        jumpnz R1 casel
-        push R1 ;placeholder for x coord
+        jumpneq R0 R1 casel
+        push MONE ;placeholder for x coord
         call gdi
-        push R1 ;placeholder for y coord
+        push MONE ;placeholder for y coord
         call gdi
         call draw
-        pop R0 ;pop y coord
-        pop R0 ;pop x coord
-
-        load #1 R1 ;change fill status
-        store R1 #0 SP
+        pop MONE ;pop y coord
+        pop MONE ;pop x coord
+        store ONE #0 SP ;change fill status
         jump main
 
         ; LINE
 casel:  ;case input = l
         load #0x6c R1
-        sub R0 R1 R1
-        jumpnz R1 main
-        push R1 ;placeholder for x1
+        jumpneq R0 R1 main
+        push MONE ;placeholder for x1
         call gdi
-        push R1 ;placeholder for y1
+        push MONE ;placeholder for y1
         call gdi
-        push R1 ;placeholder result for x2
+        push MONE ;placeholder result for x2
         call gdi
-        push R1 ;placeholder result for y2
+        push MONE ;placeholder result for y2
         call gdi
         call line
-        pop R0 ;y2
-        pop R0 ;x2
-        pop R0 ;y1
-        pop R0 ;x1
-
-        load #1 R1 ;change fill status
-        store R1 #0 SP
+        pop MONE ;y2
+        pop MONE ;x2
+        pop MONE ;y1
+        pop MONE ;x1
+        store ONE #0 SP ;change fill status
         jump main
 
-done:   pop R7 ;remove fill status
+done:   pop MONE ;remove fill status
         halt
 
 
@@ -141,18 +158,16 @@ fille:  return
 ;function assumes correct input, no error checking occurs
 ;stack frame:
 ;#0 : return address
-;#-1: input character code e.g. 0x61
-;#-2: return value e.g. 0xa
+;#-1: input character e.g. 0x61 / return value e.g. 0xa
 
-ctx:    load SP #-1 R0
+ctx:    load SP #-1 R0 ;char
         load #0x60 R1
-        sub R1 R0 R1
-        jumpn R1 ctxlet
-        load #48 R1 ;if char <= 0x60
+        jumplte R0 R1 ctxlte
+        load #87 R1 ;if char > 0x60
         jump ctxend
-ctxlet: load #87 R1 ;if char > 0x60
+ctxlte: load #48 R1 ;if char <= 0x60
 ctxend: sub R0 R1 R0
-        store R0 #-2 SP
+        store R0 #-1 SP
         return
 
 ;hex join (hj): joins two hex digits together
@@ -175,30 +190,25 @@ hj:     load SP #-2 R0
 ;as hex and joins them together into the return value
 ;stack frame:
 ;-- : input char 2
-;-- : input char 1/return val for ctx on input char 2
-;-- : return value for ctx on input char 1
-;-- : return value for hj (write to return value)
+;-- : input char 1
+;-- : return value for hj
 ;#0 : return address
 ;#-1: return value
 
-gdi:    load #0 R1
-        push R1 ;return value for hj
-        push R1 ;return value for ctx
+gdi:    push ZERO ;return value for hj
 gdi1:   load 0xfff1 R1
         jumpz R1 gdi1
         load 0xfff0 R1 ;input character
         push R1
         call ctx
-        ;(pop, push) let input character be return value spot
 gdi2:   load 0xfff1 R1
         jumpz R1 gdi2
         load 0xfff0 R1 ;next input character
         push R1
         call ctx
-        pop R1 ;input char 2
         call hj
-        pop R1 ;ctx char 2
-        pop R1 ;ctx char 1
+        pop MONE ;ctx char 2
+        pop MONE ;ctx char 1
         pop R5 ;R5 = hj return value
         store R5 #-1 SP
         return
@@ -229,29 +239,23 @@ absend: return
 ;#-3|-8|-9 |-10: y0 (original)
 ;#-4|-9|-10|-11: x0 (original)
 
-line:   load #0 R0
-        push R0 ;dx
-        push R0 ;dy
-        push R0 ;sx
-        push R0 ;sy
-        push R0 ;err
+line:   push ZERO ;dx
+        push ZERO ;dy
+        push ZERO ;sx
+        push ZERO ;sy
+        push ZERO ;err
         load SP #-9 R0 ;R0 = x0
         push R0 ;x0
-        load SP #-9 R1 ;R0 = y0
-        push R0 ;y0
+        load SP #-9 R1 ;R1 = y0
+        push R1 ;y0
 
         ;dx = abs(x1-x0)
-        load SP #-1 R0 ;R0 = x0
         load SP #-9 R1 ;R1 = x1
-        sub R1 R0 R0 ;R0 = x1 - x0
-        jumpn R0 line0
-        jumpz R0 line0
-        ; if x0 < x1
-        load #1 R7
+        jumplt R0 R1 line0
+        store MONE #-4 SP
         jump line1
-        ; else
-line0:  load #-1 R7
-line1:  store R7 #-4 SP ; update sx
+line0:  store ONE #-4 SP
+line1:  sub R1 R0 R0 ;R0 = x1 - x0
         push R0 ; pushed dx
         call abs
         pop R0 ; pop abs(dx)
@@ -260,19 +264,15 @@ line1:  store R7 #-4 SP ; update sx
         ;dy = abs(y1 - y0)
         load SP #0 R0 ;R0 = y0
         load SP #-8 R1 ;R1 = y1
-        sub R1 R0 R0 ;R0 = y1 - y0
-        jumpn R0 line2
-        jumpz R0 line2
-        ; if y0 < y1
-        load #1 R7
+        jumplt R0 R1 line2
+        store MONE #-3 SP
         jump line3
-        ; else
-line2:  load #-1 R7
-line3:  store R7 #-3 SP ; update sy
+line2:  store ONE #-3 SP
+line3:  sub R1 R0 R0 ;R0 = y1 - y0
         push R0 ; pushed dy
         call abs
         pop R0 ;pop abs(dy) into R0
-        store R0 #-5 SP
+        store R0 #-5 SP ;update dy
        
         load SP #-6 R1 ;R1 = dx
         sub R1 R0 R0 ;R0 = dx - dy
@@ -285,11 +285,10 @@ line3:  store R7 #-3 SP ; update sy
 line4:  load SP #-2 R0 ;R0 = err
         add R0 R0 R1 ;(e2) R1 = 2 * err
         load SP #-5 R2 ;R2 = dy
-        add R1 R2 R3 ;R3 = dy + e2
-        jumpn R3 line5
-        jumpz R3 line5
+        mult MONE R2 R2 ;R2 = -dy
+        jumplte R1 R2 line5
         ;err := err - dy
-        sub R0 R2 R2 ;R2 = err - dy
+        add R0 R2 R2 ;R2 = err + (-dy)
         store R2 #-2 SP ;update err
 
         ;x0 := x0 + sx
@@ -302,9 +301,7 @@ line4:  load SP #-2 R0 ;R0 = err
 line5:  load SP #-2 R0 ;R0 = err
         add R0 R0 R1 ;(e2) R1 = 2 * err
         load SP #-6 R2 ;R2 = dx
-        sub R2 R1 R3 ;R3 = dx - e2
-        jumpn R3 line6 ;go back to loop
-        jumpz R3 line6
+        jumplte R2 R1 line6 ;go back to loop
         ; err := err + dx
         add R0 R2 R2 ;R2 = err + dx
         store R2 #-2 SP ;update err
@@ -321,22 +318,20 @@ line6:  call draw ;setPixel
         ;conditional
         load SP #-1 R0  ;R0 = x0
         load SP #-9 R1 ;R1 = x1
-        sub R1 R0 R0 ;R0 = x1 - x0
-        jumpnz R0 line4 ;if x1 != x0
+        jumpneq R0 R1 line4 ;if x1 != x0
         
         ;if x1 == x0
         load SP #0 R0  ;R0 = y0
         load SP #-8 R1 ;R1 = y1
-        sub R1 R0 R0 ;R0 = x1 - x0
-        jumpnz R0 line4 ;loop if y1 != y0
+        jumpneq R0 R1 line4 ;loop if y1 != y0
         ; exit loop
-        pop R0 ;y0
-        pop R0 ;x0
-        pop R0 ;pop err
-        pop R0 ;pop sy
-        pop R0 ;pop sx
-        pop R0 ;pop dy
-        pop R0 ;pop dx
+        pop MONE ;y0
+        pop MONE ;x0
+        pop MONE ;pop err
+        pop MONE ;pop sy
+        pop MONE ;pop sx
+        pop MONE ;pop dy
+        pop MONE ;pop dx
         return
 
 ;bit pattern maker (bpm): takes an integer x and generates a 32 bit pattern of x 1s left aligned.
