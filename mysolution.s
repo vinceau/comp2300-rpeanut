@@ -40,21 +40,31 @@ mend
 main:   load 0xfff1 R0
         jumpz R0 main
         load 0xfff0 R0 ;input character
+
         ;case input = h
         load #0x68 R1
         jumpeq R0 R1 done
+
         ;case input = f
         load #0x66 R1
         jumpeq R0 R1 casef
+
         ;case input = c
         load #0x63 R1
         jumpeq R0 R1 casec
+
         ;case input = p
         load #0x70 R1
         jumpeq R0 R1 casep
+
         ;case input = l
         load #0x6c R1
         jumpeq R0 R1 casel
+
+        ;case input = r
+        load #0x72 R1
+        jumpeq R0 R1 caser
+
         ;else
         jump main
 
@@ -70,14 +80,16 @@ casef:  load SP #0 R1 ;check fill status
         ; CLEAR
 casec:  load SP #0 R1 ;check fill status
         jumpz R1 main
-        push ZERO
+        push ZERO ;push empty bit pattern
         call fill
         pop MONE
         store ZERO #0 SP
         jump main
 
         ; PIXEL
-casep:  push MONE ;placeholder for x coord
+casep:  load SP #0 R1 ;check fill status
+        jumpn R1 main ;-1 = already filled, nothing to draw
+        push MONE ;placeholder for x coord
         call gdi
         push MONE ;placeholder for y coord
         call gdi
@@ -88,19 +100,40 @@ casep:  push MONE ;placeholder for x coord
         jump main
 
         ; LINE
-casel:  push ZERO ;placeholder for x1
+casel:  load SP #0 R1 ;check fill status
+        jumpn R1 main ;-1 = already filled, nothing to draw
+        push MONE ;placeholder for x1
         call gdi
-        push ZERO ;placeholder for y1
+        push MONE ;placeholder for y1
         call gdi
-        push ZERO ;placeholder result for x2
+        push MONE ;placeholder result for x2
         call gdi
-        push ZERO ;placeholder result for y2
+        push MONE ;placeholder result for y2
         call gdi
         call line
         pop MONE ;y2
         pop MONE ;x2
         pop MONE ;y1
         pop MONE ;x1
+        store ONE #0 SP ;change fill status
+        jump main
+
+        ; RECTANGLE
+caser:  load SP #0 R1 ;check fill status
+        jumpn R1 main ;-1 = already filled, nothing to draw
+        push MONE ;placeholder for x
+        call gdi
+        push MONE ;placeholder for y
+        call gdi
+        push MONE ;placeholder width
+        call gdi
+        push MONE ;placeholder height
+        call gdi
+        call rect
+        pop MONE ;height
+        pop MONE ;width
+        pop MONE ;y
+        pop MONE ;x
         store ONE #0 SP ;change fill status
         jump main
 
@@ -111,14 +144,12 @@ done:   pop MONE ;remove fill status
 
 ; FUNCTIONS
 
-;draws a point at position (xpos, ypos)
-;void draw(int xpos, int ypos)
-;stack frame:
+;get the register of an xy coord
 ;#0 : return address
 ;#-1: ypos
 ;#-2: xpos
-
-draw:   load SP #-1 R0
+;#-3: return value
+getreg: load SP #-1 R0
         load #6 R1
         mult R0 R1 R0 ;R0 = 6 * y
 
@@ -126,7 +157,27 @@ draw:   load SP #-1 R0
         load #32 R2
         div R1 R2 R3
         add R0 R3 R0 ;R0 += x / 32
+        store R0 #-3 SP
+        return
 
+;draws a point at position (xpos, ypos)
+;void draw(int xpos, int ypos)
+;stack frame:
+;#0 : return address
+;#-1: ypos
+;#-2: xpos
+
+draw:   load SP #-1 R0 ;ypos
+        load SP #-2 R1 ;xpos
+        push MONE ;return value for register
+        push R1 ;xpos
+        push R0 ;ypos
+        call getreg
+        pop MONE ;ypos
+        pop R1 ;xpos
+        pop R0 ;register
+
+        load #32 R2
         mod R1 R2 R2 ;R2 = x % 32
         rotate R2 ONE R2
 
@@ -194,7 +245,7 @@ hj:     load SP #-2 R0
 ;#0 : return address
 ;#-1: return value
 
-gdi:    push ZERO ;return value for hj
+gdi:    push MONE ;return value for hj
 gdi1:   load 0xfff1 R1
         jumpz R1 gdi1
         load 0xfff0 R1 ;input character
@@ -238,11 +289,11 @@ absend: return
 ;#-3|-8|-9 |-10: y0 (original)
 ;#-4|-9|-10|-11: x0 (original)
 
-line:   push ZERO ;dx
-        push ZERO ;dy
-        push ZERO ;sx
-        push ZERO ;sy
-        push ZERO ;err
+line:   push MONE ;dx
+        push MONE ;dy
+        push MONE ;sx
+        push MONE ;sy
+        push MONE ;err
         load SP #-9 R0 ;R0 = x0
         push R0 ;x0
         load SP #-9 R1 ;R1 = y0
@@ -331,6 +382,31 @@ line6:  call draw ;setPixel
         pop MONE ;pop sx
         pop MONE ;pop dy
         pop MONE ;pop dx
+        return
+
+
+;draws a rectangle at x, y, with width and height
+rect:   return
+
+
+;horiz(ontal line): draws a horizontal line starting at (x, y) with a length
+;of lenght
+;stack frame:
+;#0 : return address
+;#-1: length
+;#-2: ypos
+;#-3: xpos
+horiz:  load #-2 R0; ypos
+        load #32 R1 ;32
+        mod R0 R1 R2 ;y % 32
+        div R0 R1 R3 ;y / 32
+
+
+
+        load #-1 R0 ;length of line
+horiz0: jumplt R0 R1 horiz1
+
+horiz1: ;do the rest
         return
 
 ;bit pattern maker (bpm): takes an integer x and generates a 32 bit pattern of x 1s left aligned.
