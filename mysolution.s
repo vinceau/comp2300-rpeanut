@@ -34,7 +34,16 @@ macro
 mend
 
 ; MAIN
-0x0100: push ZERO ;fill status
+0x0100: push MONE ;return value spot
+        load #2 R0
+        push R0
+        call bpm
+        pop MONE
+        pop R0
+        halt
+
+
+        push ZERO ;fill status
         ;0 empty, -1 filled, 1 contains drawing
 ;        
 main:   load 0xfff1 R0
@@ -409,24 +418,34 @@ horiz0: jumplt R0 R1 horiz1
 horiz1: ;do the rest
         return
 
-;bit pattern maker (bpm): takes an integer x and generates a 32 bit pattern of x 1s left aligned.
-;e.g. 4 becomes 111100000000...
+;bit pattern maker (bpm): takes an integer x and generates a 32 bit pattern of x 1s right aligned.
 ;stack frame:
 ;#0 : return address
 ;#-1: input integer e.g. 4
-;#-2: return value e.g. 11110000000...
+;#-2: return value e.g. 0000000...1111
 
-bpm:    load SP #-1 R0
-        load #31 R7
-        sub R7 R0 R7
-        load #0 R1
-        jump bpm1
-bpm0:   load #1 R2
-        sub R0 ONE R0
-        rotate R0 R2 R2
-        or R1 R2 R1
-        jumpn R1 bpm2
-bpm1:   jumpnz R0 bpm0
-        rotate R7 R1 R2
-bpm2:   store R2 #-2 SP
+bpm:    load #16 R0
+        load SP #-1 R1 ;n
+        jumplt R1 R0 bpm0
+        ; n > 16
+        load #32 R0
+        sub R0 R1 R1 ;n = 32 - n
+        move MONE R0 ;R0 = -1 so negate it at the end
+
+bpm0:   load #2 R2 ;2
+        load #2 R3 ;R3 = answer
+        jumpnz R1 bpm2
+        move ZERO R3
+        jump bpm3
+       
+bpm1:   mult R2 R3 R3
+bpm2:   sub R1 ONE R1 ;index -= 1
+        jumpnz R1 bpm1
+        ;R3 = 2 ** n
+        sub R3 ONE R3 ;R3 = (2 ** n) - 1
+bpm3:   jumplt ZERO R0 bpm4 ;zero so don't negate
+        not R3 R3
+        load SP #-1 R1
+        rotate R1 R3 R3
+bpm4:   store R3 #-2 SP
         return
