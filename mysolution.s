@@ -1,9 +1,9 @@
 ; u5388374 - Vincent Au 2014
 ; COMP2300 Assignment 2
 ;
-; Note: R7 is never guaranteed to hold what you want
+; Note: Due to the following macros, R7 is never guaranteed to hold what you want
 
-
+; MACROS
 ;jump if two registers are equal
 macro
     jumpeq &reg1 &reg2 &label
@@ -159,20 +159,15 @@ done:   pop MONE ;remove fill status
 
 draw:   load SP #-1 R0 ;ypos
         load SP #-2 R1 ;xpos
-
         load #6 R2
         mult R0 R2 R0 ;R0 = 6 * y
-
         load #32 R2
         div R1 R2 R3 ;R3 = x / 32
         add R0 R3 R0 ;R0 = (6 * y) + (x / 32)
-
         mod R1 R2 R2 ;R2 = x % 32
         rotate R2 ONE R2
-
         load R0 #0x7c40 R6 ;R6 = original bit pattern
         or R6 R2 R6 ;R6 = new bit pattern
-
         store R6 #0x7c40 R0 ;R0 is displacement
         return
 
@@ -201,7 +196,7 @@ gdi2:   load 0xfff1 R2
         return
 
 hextable:
-        block 48
+        block 48 ;padding
         block #0
         block #1
         block #2
@@ -212,7 +207,7 @@ hextable:
         block #7
         block #8
         block #9 ;57
-        block 39
+        block 39 ;padding
         block #0xa
         block #0xb
         block #0xc
