@@ -34,16 +34,7 @@ macro
 mend
 
 ; MAIN
-0x0100: push MONE ;return value spot
-        load #2 R0
-        push R0
-        call bpm
-        pop MONE
-        pop R0
-        halt
-
-
-        push ZERO ;fill status
+0x0100: push ZERO ;fill status
         ;0 empty, -1 filled, 1 contains drawing
 ;        
 main:   load 0xfff1 R0
@@ -395,17 +386,117 @@ line6:  call draw ;setPixel
 
 
 ;draws a rectangle at x, y, with width and height
-rect:   return
+;stack frame
+;width
+;height
+;displacement from 0x7c40
+;#0 : return address
+;#-1: height
+;#-2: width
+;#-3: ypos
+;#-4: xpos
+rect:   load SP #-4 R0
+        store R0 rectxpos
+        load SP #-2 R0
+        store R0 rectwidth
+        load SP #-1 R0
+        store R0 rectheight
 
+rectloop:
+        load SP #-3 R0 ;R0 = orig ypos
+        load #6 R2
+        mult R0 R2 R2 ;R2 = 6 * y
+
+        load rectxpos R1 ;R1 = xpos
+        load #32 R3 ;R3 = 32
+        div R1 R3 R4 ;R4 = xpos / 32
+        add R2 R4 R4 ;R4 = (6 * y) + (x / 32) 
+        store R4 rectcurrblock
+
+        mod R1 R3 R5 ;R5 = xpos % 32
+        store R5 rectxposblock
+        sub R3 R5 R5 ;R5 = number of spots left over
+        store R5 rectspotsleft
+        ;check if width is greater than spots left over
+        load rectwidth R6 ;R6 = width
+        jumplte R6 ZERO rectcheck;jump if width is less zero
+        ;width is non zero
+        jumplte R6 R5 rectstartdraw ;width < spots left
+        ;width is greater than spots left
+        move R5 R6 ;replace width with spots left
+rectstartdraw:
+        push R6 ;push width
+        call bpm
+        pop R6 ;bit pattern of size width
+        load rectxposblock R0
+        rotate R0 R6 R6 ;shifted bit pattern
+        load SP #-1 R0
+        load rectcurrblock R1
+        load #6 R2
+        move ONE R3 ;R3 = 1
+        load SP #-1 R0 ;orig height
+rectdrawheight:
+        store R6 #0x7c40 R1
+        jumpeq R3 R0 rectnextloop
+        add R3 ONE R3
+        add R1 R2 R1 ;current block + 6
+        jump rectdrawheight
+rectnextloop:
+        load rectwidth R0
+        load rectspotsleft R1
+        sub R0 R1 R0
+        store R0 rectwidth ;width -= spotsleft
+        load rectxpos R0
+        add R0 R1 R0 ;xpos += spotsleft
+        store R0 rectxpos
+        jump rectloop
+rectcheck:
+        load rectheight R0
+        jumpz R0 rectend
+        sub R0 ONE R0
+        store R0 rectheight ;height -= 1
+        load SP #-2 R0 ;R0 = width
+        store R0 rectwidth ;reset width
+rectend:
+        return
+
+rectxpos:       block 1
+rectwidth:      block 1
+rectheight:     block 1
+rectcurrblock:  block 1  ;(displacement from 0x7c40)
+rectxposblock:  block 1  ;xpos relative to block
+rectspotsleft:  block 1  ;32 - xpos block pos
 
 ;horiz(ontal line): draws a horizontal line starting at (x, y) with a length
-;of lenght
+;of length
 ;stack frame:
-;#0 : return address
-;#-1: length
-;#-2: ypos
-;#-3: xpos
-horiz:  load #-2 R0; ypos
+;   |  |0 : ypos (temp)
+;   |0 |-1: xpos (temp)
+;   |-1|-2|0 : end register
+;   |-2|-3|-1: start register
+;#0 |-3|  |-2: return address
+;#-1|-4|  |-3: length
+;#-2|-5|  |-4: ypos
+;#-3|-6|  |-5: xpos
+horiz:  load #-3 R0; xpos
+        load #-2 R1; ypos
+        push MONE ;spot for reg return
+        push R0
+        push R1
+        call getreg
+        load #-6 R0; xpos
+        load #-5 R1; ypos
+        store R0 #0 SP ;replace ypos with xpos
+        push R1 ;put ypos on top
+        call getreg
+        pop R1; ypos
+        pop R0; xpos
+        load SP #-1 R2 ;start reg
+        load SP #0 R3 ;end reg
+        sub R3 R2 R4 ;end - reg
+
+
+        load #-2 R0; ypos
         load #32 R1 ;32
         mod R0 R1 R2 ;y % 32
         div R0 R1 R3 ;y / 32
@@ -418,11 +509,10 @@ horiz0: jumplt R0 R1 horiz1
 horiz1: ;do the rest
         return
 
-;bit pattern maker (bpm): takes an integer x and generates a 32 bit pattern of x 1s right aligned.
+;bit pattern maker (bpm): takes an integer x and turns it into a 32 bit pattern of x 1s right aligned.
 ;stack frame:
 ;#0 : return address
-;#-1: input integer e.g. 4
-;#-2: return value e.g. 0000000...1111
+;#-1: input integer e.g. 4 -> return value e.g. 0000000...1111
 
 bpm:    load #16 R0
         load SP #-1 R1 ;n
@@ -443,9 +533,9 @@ bpm2:   sub R1 ONE R1 ;index -= 1
         jumpnz R1 bpm1
         ;R3 = 2 ** n
         sub R3 ONE R3 ;R3 = (2 ** n) - 1
-bpm3:   jumplt ZERO R0 bpm4 ;zero so don't negate
+bpm3:   jumplt ZERO R0 bpm4 ;continue if negative
         not R3 R3
         load SP #-1 R1
         rotate R1 R3 R3
-bpm4:   store R3 #-2 SP
+bpm4:   store R3 #-1 SP
         return
