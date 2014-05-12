@@ -177,65 +177,48 @@ draw:   load SP #-1 R0 ;ypos
         return
 
 
-;character to hex (ctx): converts the character code into its
-;correct hex code. e.g. converts 0x61 (letter a), into 0xa.
-;function assumes correct input, no error checking occurs
-;stack frame:
-;#0 : return address
-;#-1: input character e.g. 0x61 / return value e.g. 0xa
-
-ctx:    load SP #-1 R0 ;char
-        load #0x60 R1
-        jumplte R0 R1 ctxlte
-        load #87 R1 ;if char > 0x60
-        jump ctxend
-ctxlte: load #48 R1 ;if char <= 0x60
-ctxend: sub R0 R1 R0
-        store R0 #-1 SP
-        return
-
-;hex join (hj): joins two hex digits together
-;e.g. 3 and b becomes 3b
-;stack frame:
-;#0 : return address
-;#-1: input digit 2 (ones) e.g. b
-;#-2: input digit 1 (sixteens) e.g. 3
-;#-3: return value e.g. 3b
-
-hj:     load SP #-2 R0
-        load #16 R1
-        mult R0 R1 R0
-        load SP #-1 R1
-        add R0 R1 R0
-        store R0 #-3 SP
-        return
-
 ;get double input (gdi): listens for two character inputs
 ;as hex and joins them together into the return value
 ;stack frame:
-;-- : input char 2
-;-- : input char 1
-;-- : return value for hj
 ;#0 : return address
 ;#-1: return value
 
-gdi:    push MONE ;return value for hj
+gdi:    load #hextable R0
+        load #16 R3
 gdi1:   load 0xfff1 R1
         jumpz R1 gdi1
         load 0xfff0 R1 ;input character
-        push R1
-        call ctx
-gdi2:   load 0xfff1 R1
-        jumpz R1 gdi2
-        load 0xfff0 R1 ;next input character
-        push R1
-        call ctx
-        call hj
-        pop MONE ;ctx char 2
-        pop MONE ;ctx char 1
-        pop R5 ;R5 = hj return value
-        store R5 #-1 SP
+        add R0 R1 R1 ;hextable + input char offset
+        load R1 R1 ;get char value
+        mult R3 R1 R1
+gdi2:   load 0xfff1 R2
+        jumpz R2 gdi2
+        load 0xfff0 R2 ;next input character
+        add R0 R2 R2 ;hextable + input char offset
+        load R2 R2 ;get char value
+        add R1 R2 R1
+        store R1 #-1 SP
         return
+
+hextable:
+        block 48
+        block #0
+        block #1
+        block #2
+        block #3
+        block #4
+        block #5
+        block #6
+        block #7
+        block #8
+        block #9 ;57
+        block 39
+        block #0xa
+        block #0xb
+        block #0xc
+        block #0xd
+        block #0xe
+        block #0xf
 
 
 ;line: draws a line
