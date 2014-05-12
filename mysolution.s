@@ -72,19 +72,25 @@ main:   load 0xfff1 R0
 casef:  load SP #0 R1 ;check fill status
         jumpn R1 main ;-1 = already filled
         store MONE #0 SP ;change fill status to -1
-        push MONE ;push bit pattern, -1 = 0xffffffff
-        call fill
-        pop MONE ;pop bit pattern
-        jump main
+
+        load #0x3bf R1 ;distance between 0x7c40 and 0x7fff
+startfill:
+        store MONE #0x7c40 R1
+        jumpz R1 main ;if displacement is 0
+        sub R1 ONE R1
+        jump startfill
 
         ; CLEAR
 casec:  load SP #0 R1 ;check fill status
-        jumpz R1 main
-        push ZERO ;push empty bit pattern
-        call fill
-        pop MONE
-        store ZERO #0 SP
-        jump main
+        jumpz R1 main ;zero means already cleared
+        
+        store ZERO #0 SP ;change fill status to zero
+        load #0x3bf R1 ;distance between 0x7c40 and 0x7fff
+startclear:
+        store ZERO #0x7c40 R1
+        jumpz R1 main ;if displacement is 0
+        sub R1 ONE R1
+        jump startclear
 
         ; PIXEL
 casep:  load SP #0 R1 ;check fill status
@@ -144,22 +150,6 @@ done:   pop MONE ;remove fill status
 
 ; FUNCTIONS
 
-;get the register of an xy coord
-;#0 : return address
-;#-1: ypos
-;#-2: xpos
-;#-3: return value
-getreg: load SP #-1 R0
-        load #6 R1
-        mult R0 R1 R0 ;R0 = 6 * y
-
-        load SP #-2 R1
-        load #32 R2
-        div R1 R2 R3
-        add R0 R3 R0 ;R0 += x / 32
-        store R0 #-3 SP
-        return
-
 ;draws a point at position (xpos, ypos)
 ;void draw(int xpos, int ypos)
 ;stack frame:
@@ -169,15 +159,14 @@ getreg: load SP #-1 R0
 
 draw:   load SP #-1 R0 ;ypos
         load SP #-2 R1 ;xpos
-        push MONE ;return value for register
-        push R1 ;xpos
-        push R0 ;ypos
-        call getreg
-        pop MONE ;ypos
-        pop R1 ;xpos
-        pop R0 ;register
+
+        load #6 R2
+        mult R0 R2 R0 ;R0 = 6 * y
 
         load #32 R2
+        div R1 R2 R3 ;R3 = x / 32
+        add R0 R3 R0 ;R0 = (6 * y) + (x / 32)
+
         mod R1 R2 R2 ;R2 = x % 32
         rotate R2 ONE R2
 
@@ -186,21 +175,6 @@ draw:   load SP #-1 R0 ;ypos
 
         store R6 #0x7c40 R0 ;R0 is displacement
         return
-
-
-;fills in the entire frame buffer with the hex pattern
-;void fill(hex pattern)
-;stack frame:
-;#0 : return address
-;#-1: hex pattern
-
-fill:   load SP #-1 R0
-        load #0x3bf R1 ;distance between 0x7c40 and 0x7fff
-paint:  store R0 #0x7c40 R1
-        jumpz R1 fille ;if displacement is 0
-        sub R1 ONE R1
-        jump paint
-fille:  return
 
 
 ;character to hex (ctx): converts the character code into its
@@ -263,16 +237,6 @@ gdi2:   load 0xfff1 R1
         store R5 #-1 SP
         return
 
-;absolute (abs): turns a number on the stack into its absolute value
-;stack pane:
-;#0 : return address
-;#-1: number
-abs:    load SP #-1 R0
-        sub ZERO R0 R0
-        jumpn R0 absend
-        store R0 #-1 SP
-absend: return
-
 
 ;line: draws a line
 ;stack frame:
@@ -289,7 +253,6 @@ linedy:     block 1
 linesx:     block 1
 linesy:     block 1
 lineerr:    block 1
-linee2:     block 1
 
 line:   load SP #-4 R0 ;R0 = x0
         push R0 ;x0
@@ -303,11 +266,12 @@ line:   load SP #-4 R0 ;R0 = x0
         jump line1
 line0:  store ONE linesx
 line1:  sub R1 R0 R0 ;R0 = x1 - x0
-        push R0 ; pushed dx
-        call abs
-        pop R0 ; pop abs(dx)
+        ;abs(x1 - x0)
+        sub ZERO R0 R1 ;-(x1 - x0)
+        jumpn R1 linestoredx
+        move R1 R0
+linestoredx:
         store R0 linedx ;update dx
-       
         ;dy = abs(y1 - y0)
         load SP #0 R0 ;R0 = y0
         load SP #-3 R1 ;R1 = y1
@@ -316,9 +280,11 @@ line1:  sub R1 R0 R0 ;R0 = x1 - x0
         jump line3
 line2:  store ONE linesy
 line3:  sub R1 R0 R0 ;R0 = y1 - y0
-        push R0 ; pushed dy
-        call abs
-        pop R0 ;pop abs(dy) into R0
+        ;abs(y1 - y0)
+        sub ZERO R0 R1
+        jumpn R1 linestoredy
+        move R1 R0
+linestoredy:
         store R0 linedy ;update dy
        
         load linedx R1 ;R1 = dx
@@ -331,7 +297,6 @@ line3:  sub R1 R0 R0 ;R0 = y1 - y0
         ;if e2 > - dy
 line4:  load lineerr R0 ;R0 = err
         add R0 R0 R1 ;(e2) R1 = 2 * err
-        store R1 linee2
         load linedy R2 ;R2 = dy
         mult MONE R2 R2 ;R2 = -dy
         jumplte R1 R2 line5
@@ -347,7 +312,6 @@ line4:  load lineerr R0 ;R0 = err
         
         ;if e2 < dx
 line5:  load lineerr R0 ;R0 = err
-        load linee2 R1 ;load e2
         load linedx R2 ;R2 = dx
         jumplte R2 R1 line6 ;go back to loop
         ; err := err + dx
