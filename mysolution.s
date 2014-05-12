@@ -289,6 +289,7 @@ linedy:     block 1
 linesx:     block 1
 linesy:     block 1
 lineerr:    block 1
+linee2:     block 1
 
 line:   load SP #-4 R0 ;R0 = x0
         push R0 ;x0
@@ -330,6 +331,7 @@ line3:  sub R1 R0 R0 ;R0 = y1 - y0
         ;if e2 > - dy
 line4:  load lineerr R0 ;R0 = err
         add R0 R0 R1 ;(e2) R1 = 2 * err
+        store R1 linee2
         load linedy R2 ;R2 = dy
         mult MONE R2 R2 ;R2 = -dy
         jumplte R1 R2 line5
@@ -345,7 +347,7 @@ line4:  load lineerr R0 ;R0 = err
         
         ;if e2 < dx
 line5:  load lineerr R0 ;R0 = err
-        add R0 R0 R1 ;(e2) R1 = 2 * err
+        load linee2 R1 ;load e2
         load linedx R2 ;R2 = dx
         jumplte R2 R1 line6 ;go back to loop
         ; err := err + dx
