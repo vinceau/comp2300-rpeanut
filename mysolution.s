@@ -276,89 +276,85 @@ absend: return
 
 ;line: draws a line
 ;stack frame:
-;-- |--|-- |0  : y0 (modified)
-;-- |--|0  |-1 : x0 (modified)
-;-- |0 |-1 |-2 : err
-;-- |-1|-2 |-3 : sy
-;-- |-2|-3 |-4 : sx
-;-- |-3|-4 |-5 : dy
-;-- |-4|-5 |-6 : dx
-;#0 |-5|-6 |-7 : return address
-;#-1|-6|-7 |-8 : y1
-;#-2|-7|-8 |-9 : x1
-;#-3|-8|-9 |-10: y0 (original)
-;#-4|-9|-10|-11: x0 (original)
+;--|--|0 : y0 (modified)
+;--|0 |-1: x0 (modified)
+;0 |-1|-2: return address
+;-1|-2|-3: y1
+;-2|-3|-4: x1
+;-3|-4|-5: y0 (original)
+;-4|-5|-6: x0 (original)
 
-line:   push MONE ;dx
-        push MONE ;dy
-        push MONE ;sx
-        push MONE ;sy
-        push MONE ;err
-        load SP #-9 R0 ;R0 = x0
+linedx:     block 1
+linedy:     block 1
+linesx:     block 1
+linesy:     block 1
+lineerr:    block 1
+
+line:   load SP #-4 R0 ;R0 = x0
         push R0 ;x0
-        load SP #-9 R1 ;R1 = y0
+        load SP #-4 R1
         push R1 ;y0
 
         ;dx = abs(x1-x0)
-        load SP #-9 R1 ;R1 = x1
+        load SP #-4 R1 ;R1 = x1
         jumplt R0 R1 line0
-        store MONE #-4 SP
+        store MONE linesx
         jump line1
-line0:  store ONE #-4 SP
+line0:  store ONE linesx
 line1:  sub R1 R0 R0 ;R0 = x1 - x0
         push R0 ; pushed dx
         call abs
         pop R0 ; pop abs(dx)
-        store R0 #-6 SP ;update dx
+        store R0 linedx ;update dx
        
         ;dy = abs(y1 - y0)
         load SP #0 R0 ;R0 = y0
-        load SP #-8 R1 ;R1 = y1
+        load SP #-3 R1 ;R1 = y1
         jumplt R0 R1 line2
-        store MONE #-3 SP
+        store MONE linesy
         jump line3
-line2:  store ONE #-3 SP
+line2:  store ONE linesy
 line3:  sub R1 R0 R0 ;R0 = y1 - y0
         push R0 ; pushed dy
         call abs
         pop R0 ;pop abs(dy) into R0
-        store R0 #-5 SP ;update dy
+        store R0 linedy ;update dy
        
-        load SP #-6 R1 ;R1 = dx
+        load linedx R1 ;R1 = dx
         sub R1 R0 R0 ;R0 = dx - dy
-        store R0 #-2 SP; update err
+        store R0 lineerr; update err
 
         ;start loop
         jump line6
 
         ;if e2 > - dy
-line4:  load SP #-2 R0 ;R0 = err
+line4:  load lineerr R0 ;R0 = err
         add R0 R0 R1 ;(e2) R1 = 2 * err
-        load SP #-5 R2 ;R2 = dy
+        load linedy R2 ;R2 = dy
         mult MONE R2 R2 ;R2 = -dy
         jumplte R1 R2 line5
         ;err := err - dy
         add R0 R2 R2 ;R2 = err + (-dy)
-        store R2 #-2 SP ;update err
+        store R2 lineerr ;update err
 
         ;x0 := x0 + sx
         load SP #-1 R2 ;R2 = x0
-        load SP #-4 R3 ;R3 = sx
+        load linesx R3 ;R3 = sx
         add R2 R3 R2 ;R2 = x0 + sx
         store R2 #-1 SP ;update x0
         
         ;if e2 < dx
-line5:  load SP #-2 R0 ;R0 = err
+line5:  load lineerr R0 ;R0 = err
         add R0 R0 R1 ;(e2) R1 = 2 * err
-        load SP #-6 R2 ;R2 = dx
+        load linedx R2 ;R2 = dx
         jumplte R2 R1 line6 ;go back to loop
         ; err := err + dx
         add R0 R2 R2 ;R2 = err + dx
-        store R2 #-2 SP ;update err
+        store R2 lineerr ;update err
         
         ; y0 := y0 + sy
         load SP #0 R0 ;R0 = y0
-        load SP #-3 R1 ;R1 = sy
+        load linesy R1 ;R1 = sy
         add R0 R1 R1 ;R1 = y0 + sy
         store R1 #0 SP ;update y0
 
@@ -367,34 +363,33 @@ line6:  call draw ;setPixel
 
         ;conditional
         load SP #-1 R0  ;R0 = x0
-        load SP #-9 R1 ;R1 = x1
+        load SP #-4 R1 ;R1 = x1
         jumpneq R0 R1 line4 ;if x1 != x0
         
         ;if x1 == x0
         load SP #0 R0  ;R0 = y0
-        load SP #-8 R1 ;R1 = y1
+        load SP #-3 R1 ;R1 = y1
         jumpneq R0 R1 line4 ;loop if y1 != y0
         ; exit loop
         pop MONE ;y0
         pop MONE ;x0
-        pop MONE ;pop err
-        pop MONE ;pop sy
-        pop MONE ;pop sx
-        pop MONE ;pop dy
-        pop MONE ;pop dx
         return
 
 
 ;draws a rectangle at x, y, with width and height
 ;stack frame
-;width
-;height
-;displacement from 0x7c40
 ;#0 : return address
 ;#-1: height
 ;#-2: width
 ;#-3: ypos
 ;#-4: xpos
+rectxpos:       block 1
+rectwidth:      block 1
+rectheight:     block 1
+rectcurrblock:  block 1  ;(displacement from 0x7c40)
+rectxposblock:  block 1  ;xpos relative to block
+rectspotsleft:  block 1  ;32 - xpos block pos
+
 rect:   load SP #-4 R0
         store R0 rectxpos
         load SP #-2 R0
@@ -460,54 +455,6 @@ rectcheck:
 rectend:
         return
 
-rectxpos:       block 1
-rectwidth:      block 1
-rectheight:     block 1
-rectcurrblock:  block 1  ;(displacement from 0x7c40)
-rectxposblock:  block 1  ;xpos relative to block
-rectspotsleft:  block 1  ;32 - xpos block pos
-
-;horiz(ontal line): draws a horizontal line starting at (x, y) with a length
-;of length
-;stack frame:
-;   |  |0 : ypos (temp)
-;   |0 |-1: xpos (temp)
-;   |-1|-2|0 : end register
-;   |-2|-3|-1: start register
-;#0 |-3|  |-2: return address
-;#-1|-4|  |-3: length
-;#-2|-5|  |-4: ypos
-;#-3|-6|  |-5: xpos
-horiz:  load #-3 R0; xpos
-        load #-2 R1; ypos
-        push MONE ;spot for reg return
-        push R0
-        push R1
-        call getreg
-        load #-6 R0; xpos
-        load #-5 R1; ypos
-        store R0 #0 SP ;replace ypos with xpos
-        push R1 ;put ypos on top
-        call getreg
-        pop R1; ypos
-        pop R0; xpos
-        load SP #-1 R2 ;start reg
-        load SP #0 R3 ;end reg
-        sub R3 R2 R4 ;end - reg
-
-
-        load #-2 R0; ypos
-        load #32 R1 ;32
-        mod R0 R1 R2 ;y % 32
-        div R0 R1 R3 ;y / 32
-
-
-
-        load #-1 R0 ;length of line
-horiz0: jumplt R0 R1 horiz1
-
-horiz1: ;do the rest
-        return
 
 ;bit pattern maker (bpm): takes an integer x and turns it into a 32 bit pattern of x 1s right aligned.
 ;stack frame:
