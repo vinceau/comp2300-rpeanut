@@ -74,11 +74,10 @@ casef:  load SP #0 R1 ;check fill status
         store MONE #0 SP ;change fill status to -1
 
         load #0x3bf R1 ;distance between 0x7c40 and 0x7fff
-startfill:
-        store MONE #0x7c40 R1
+fill:   store MONE #0x7c40 R1
         jumpz R1 main ;if displacement is 0
         sub R1 ONE R1
-        jump startfill
+        jump fill
 
         ; CLEAR
 casec:  load SP #0 R1 ;check fill status
@@ -86,11 +85,10 @@ casec:  load SP #0 R1 ;check fill status
         
         store ZERO #0 SP ;change fill status to zero
         load #0x3bf R1 ;distance between 0x7c40 and 0x7fff
-startclear:
-        store ZERO #0x7c40 R1
+clear:  store ZERO #0x7c40 R1
         jumpz R1 main ;if displacement is 0
         sub R1 ONE R1
-        jump startclear
+        jump clear
 
         ; PIXEL
 casep:  load SP #0 R1 ;check fill status
