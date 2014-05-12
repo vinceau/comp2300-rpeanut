@@ -329,7 +329,6 @@ line6:  call draw ;setPixel
 ;#-4: xpos
 rectxpos:       block 1
 rectwidth:      block 1
-rectheight:     block 1
 rectcurrblock:  block 1  ;(displacement from 0x7c40)
 rectxposblock:  block 1  ;xpos relative to block
 rectspotsleft:  block 1  ;32 - xpos block pos
