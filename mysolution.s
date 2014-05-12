@@ -1,9 +1,10 @@
 ; u5388374 - Vincent Au 2014
 ; COMP2300 Assignment 2
-;
-; Note: Due to the following macros, R7 is never guaranteed to hold what you want
+
 
 ; MACROS
+; Note: R7 is never guaranteed to hold what you expect it to
+
 ;jump if two registers are equal
 macro
     jumpeq &reg1 &reg2 &label
@@ -36,7 +37,6 @@ mend
 ; MAIN
 0x0100: push ZERO ;fill status
         ;0 empty, -1 filled, 1 contains drawing
-;        
 main:   load 0xfff1 R0
         jumpz R0 main
         load 0xfff0 R0 ;input character
@@ -338,9 +338,6 @@ rect:   load SP #-4 R0
         store R0 rectxpos
         load SP #-2 R0
         store R0 rectwidth
-        load SP #-1 R0
-        store R0 rectheight
-
 rectloop:
         load SP #-3 R0 ;R0 = orig ypos
         load #6 R2
@@ -358,7 +355,7 @@ rectloop:
         store R5 rectspotsleft
         ;check if width is greater than spots left over
         load rectwidth R6 ;R6 = width
-        jumplte R6 ZERO rectcheck;jump if width is less zero
+        jumplte R6 ZERO rectend;jump if width is less zero
         ;width is non zero
         jumplte R6 R5 rectstartdraw ;width < spots left
         ;width is greater than spots left
@@ -389,13 +386,6 @@ rectnextloop:
         add R0 R1 R0 ;xpos += spotsleft
         store R0 rectxpos
         jump rectloop
-rectcheck:
-        load rectheight R0
-        jumpz R0 rectend
-        sub R0 ONE R0
-        store R0 rectheight ;height -= 1
-        load SP #-2 R0 ;R0 = width
-        store R0 rectwidth ;reset width
 rectend:
         return
 
