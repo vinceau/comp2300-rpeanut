@@ -34,6 +34,19 @@ macro
     jumpz R7 &label
 mend
 
+;jump if first register is greater than second
+macro
+    jumpgt &reg1 &reg2 &label
+    jumplt &reg2 &reg1 &label
+mend
+
+;jump if first register is greater than or equal to the second
+macro
+    jumpgte &reg1 &reg2 &label
+    jumplte &reg2 &reg1 &label
+mend
+
+
 ; MAIN
 0x0100: push ZERO ;fill status
         ;0 empty, -1 filled, 1 contains drawing
