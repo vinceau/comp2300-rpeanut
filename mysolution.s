@@ -374,12 +374,12 @@ rectloop:
         ;check if width is greater than spots left over
         load rectwidth R6 ;R6 = width
         jumpgt R6 R5 rectwidthoverspots ;width > spots
-        jumpgt R6 ZERO rectstartdraw;jump if 0 < width <= spots left
+        jumpgt R6 ZERO rectusebpm;jump if 0 < width <= spots left
         return ;width is <= 0
 rectwidthoverspots:
         jumpeq R5 R3 rect32 ;jump if spots left = 32
         move R5 R6 ;replace width with spots left
-rectstartdraw:
+rectusebpm:
         push R6 ;push width
         call bpm
         pop R6 ;bit pattern of size width
