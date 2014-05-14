@@ -82,8 +82,8 @@ fill:   store MONE #0x7c40 R1
         ; CLEAR
 casec:  load SP #0 R1 ;check fill status
         jumpz R1 main ;zero means already cleared
-        
         store ZERO #0 SP ;change fill status to zero
+        
         load #0x3bf R1 ;distance between 0x7c40 and 0x7fff
 clear:  store ZERO #0x7c40 R1
         jumpz R1 main ;if displacement is 0
@@ -93,6 +93,8 @@ clear:  store ZERO #0x7c40 R1
         ; PIXEL
 casep:  load SP #0 R1 ;check fill status
         jumpn R1 main ;-1 = already filled, nothing to draw
+        store ONE #0 SP ;change fill status
+        
         push MONE ;placeholder for x coord
         call gdi
         push MONE ;placeholder for y coord
@@ -100,12 +102,13 @@ casep:  load SP #0 R1 ;check fill status
         call draw
         pop MONE ;pop y coord
         pop MONE ;pop x coord
-        store ONE #0 SP ;change fill status
         jump main
 
         ; LINE
 casel:  load SP #0 R1 ;check fill status
         jumpn R1 main ;-1 = already filled, nothing to draw
+        store ONE #0 SP ;change fill status
+        
         push MONE ;placeholder for x1
         call gdi
         push MONE ;placeholder for y1
@@ -119,12 +122,13 @@ casel:  load SP #0 R1 ;check fill status
         pop MONE ;x2
         pop MONE ;y1
         pop MONE ;x1
-        store ONE #0 SP ;change fill status
         jump main
 
         ; RECTANGLE
 caser:  load SP #0 R1 ;check fill status
         jumpn R1 main ;-1 = already filled, nothing to draw
+        store ONE #0 SP ;change fill status
+        
         push MONE ;placeholder for x
         call gdi
         push MONE ;placeholder for y
@@ -138,7 +142,6 @@ caser:  load SP #0 R1 ;check fill status
         pop MONE ;width
         pop MONE ;y
         pop MONE ;x
-        store ONE #0 SP ;change fill status
         jump main
 
         ; HALT
@@ -262,7 +265,6 @@ line3:  sub R1 R0 R0 ;R0 = y1 - y0
         move R1 R0
 linestoredy:
         store R0 linedy ;update dy
-       
         load linedx R1 ;R1 = dx
         sub R1 R0 R0 ;R0 = dx - dy
         store R0 lineerr; update err
