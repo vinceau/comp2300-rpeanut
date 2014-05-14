@@ -332,20 +332,26 @@ rectwidth:      block 1
 rectcurrblock:  block 1  ;(displacement from 0x7c40)
 rectxposblock:  block 1  ;xpos relative to block
 rectspotsleft:  block 1  ;32 - xpos block pos
+rectyposblock:  block 1  ;y + height block (no x value)
 
 rect:   load SP #-4 R0
         store R0 rectxpos
         load SP #-2 R0
         store R0 rectwidth
-rectloop:
+        
         load SP #-3 R0 ;R0 = orig ypos
+        load SP #-1 R1 ;R1 = height of rectangle
+        add R0 R1 R0 ;R0 = ypos + height
         load #6 R2
         mult R0 R2 R2 ;R2 = 6 * y
+        store R2 rectyposblock
 
+rectloop:
+        load rectyposblock R2
         load rectxpos R1 ;R1 = xpos
         load #32 R3 ;R3 = 32
         div R1 R3 R4 ;R4 = xpos / 32
-        add R2 R4 R4 ;R4 = (6 * y) + (x / 32) 
+        add R2 R4 R4 ;R4 = (y pos) + (x / 32) 
         store R4 rectcurrblock
 
         mod R1 R3 R5 ;R5 = xpos % 32
@@ -365,16 +371,14 @@ rectstartdraw:
         pop R6 ;bit pattern of size width
         load rectxposblock R0
         rotate R0 R6 R6 ;shifted bit pattern
-        load SP #-1 R0
         load rectcurrblock R1
         load #6 R2
-        move ONE R3 ;R3 = 1
         load SP #-1 R0 ;orig height
 rectdrawheight:
+        sub R1 R2 R1 ;current block - 6
+        sub R0 ONE R0
         store R6 #0x7c40 R1
-        jumpeq R3 R0 rectnextloop
-        add R3 ONE R3
-        add R1 R2 R1 ;current block + 6
+        jumpz R0 rectnextloop
         jump rectdrawheight
 rectnextloop:
         load rectwidth R0
