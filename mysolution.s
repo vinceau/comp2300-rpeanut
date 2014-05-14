@@ -373,14 +373,11 @@ rectloop:
         store R5 rectspotsleft
         ;check if width is greater than spots left over
         load rectwidth R6 ;R6 = width
-        jumplte R6 ZERO rectend;jump if width is less zero
-        ;width is non zero
-        jumplte R6 R5 rectstartdraw ;width <= spots left
-        ;width is greater than spots left
-        jumpneq R5 R3 rectnot32 ;check if we need to fill the whole block
-        move MONE R6
-        jump rectinit
-rectnot32:
+        jumpgt R6 R5 rectwidthoverspots ;width > spots
+        jumpgt R6 ZERO rectstartdraw;jump if 0 < width <= spots left
+        jump rectend
+rectwidthoverspots:
+        jumpeq R5 R3 rect32 ;jump if spots left = 32
         move R5 R6 ;replace width with spots left
 rectstartdraw:
         push R6 ;push width
@@ -388,6 +385,9 @@ rectstartdraw:
         pop R6 ;bit pattern of size width
         load rectxposblock R0
         rotate R0 R6 R6 ;shifted bit pattern
+        jump rectinit
+rect32:
+        move MONE R6
 rectinit:
         load rectcurrblock R1
         load #6 R2
