@@ -375,7 +375,7 @@ rectloop:
         load rectwidth R6 ;R6 = width
         jumpgt R6 R5 rectwidthoverspots ;width > spots
         jumpgt R6 ZERO rectstartdraw;jump if 0 < width <= spots left
-        jump rectend
+        return ;width is <= 0
 rectwidthoverspots:
         jumpeq R5 R3 rect32 ;jump if spots left = 32
         move R5 R6 ;replace width with spots left
@@ -407,9 +407,6 @@ rectnextloop:
         add R0 R1 R0 ;xpos += spotsleft
         store R0 rectxpos
         jump rectloop
-rectend:
-        return
-
 
 ;bit pattern maker (bpm): takes an integer x and turns it into a 32 bit pattern of x 1s right aligned.
 ;stack frame:
