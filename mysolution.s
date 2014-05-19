@@ -60,7 +60,9 @@ mend
 main:   load 0xfff0 R0
         jumpz main
         move R0 PC
-        ;end main
+done:   pop MONE ;remove fill status
+        halt
+
 
         ; FILL
 casef:  load SP #0 R1 ;check fill status
@@ -73,6 +75,7 @@ fill:   store MONE #0x7c40 R1
         sub R1 ONE R1
         jump fill
 
+
         ; CLEAR
 casec:  load SP #0 R1 ;check fill status
         jumpz R1 main ;zero means already cleared
@@ -83,6 +86,7 @@ clear:  store ZERO #0x7c40 R1
         jumpz R1 main ;if displacement is 0
         sub R1 ONE R1
         jump clear
+
 
         ; PIXEL
 casep:  load SP #0 R1 ;check fill status
@@ -138,9 +142,6 @@ caser:  load SP #0 R1 ;check fill status
         pop MONE ;x
         jump main
 
-        ; HALT
-done:   pop MONE ;remove fill status
-        halt
 
 
 ; FUNCTIONS
@@ -321,13 +322,7 @@ line6:  call draw ;setPixel
 ;#-2: width
 ;#-3: ypos
 ;#-4: xpos
-rectxpos:       block 1
-rectwidth:      block 1
 rectcurrblock:  block 1  ;(displacement from 0x7c40)
-rectxposblock:  block 1  ;xpos relative to block
-rectspotsleft:  block 1  ;32 - xpos block pos
-rectyposblock:  block 1  ;y + height block (no x value)
-
 
 rect:   load SP #-3 R0 ;R0 = orig ypos
         load SP #-1 R1 ;R1 = height of rectangle
