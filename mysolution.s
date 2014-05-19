@@ -111,112 +111,30 @@ casep:  load SP #0 R1 ;check fill status
         jump main
 
         ; LINE
-casel:  load SP #0 R1 ;check fill status
-        jumpn R1 main ;-1 = already filled, nothing to draw
-        store ONE #0 SP ;change fill status
-        
-        push MONE ;placeholder for x1
-        call gdi
-        push MONE ;placeholder for y1
-        call gdi
-        push MONE ;placeholder result for x2
-        call gdi
-        push MONE ;placeholder result for y2
-        call gdi
-        call line
-        pop MONE ;y2
-        pop MONE ;x2
-        pop MONE ;y1
-        pop MONE ;x1
-        jump main
-
-        ; RECTANGLE
-caser:  load SP #0 R1 ;check fill status
-        jumpn R1 main ;-1 = already filled, nothing to draw
-        store ONE #0 SP ;change fill status
-        
-        push MONE ;placeholder for x
-        call gdi
-        push MONE ;placeholder for y
-        call gdi
-        push MONE ;placeholder width
-        call gdi
-        push MONE ;placeholder height
-        call gdi
-        call rect
-        pop MONE ;height
-        pop MONE ;width
-        pop MONE ;y
-        pop MONE ;x
-        jump main
-
-
-
-; FUNCTIONS
-
-;get double input (gdi): listens for two character inputs
-;as hex and joins them together into the return value
-;stack frame:
-;#0 : return address
-;#-1: return value
-
-gdi:    load #hextable R0
-        load #16 R3
-gdi1:   load 0xfff1 R1
-        jumpz R1 gdi1
-        load 0xfff0 R1 ;input character
-        add R0 R1 R1 ;hextable + input char offset
-        load R1 R1 ;get char value
-        mult R3 R1 R1
-gdi2:   load 0xfff1 R2
-        jumpz R2 gdi2
-        load 0xfff0 R2 ;next input character
-        add R0 R2 R2 ;hextable + input char offset
-        load R2 R2 ;get char value
-        add R1 R2 R1
-        store R1 #-1 SP
-        return
-
-hextable:
-        block 48 ;padding
-        block #0
-        block #1
-        block #2
-        block #3
-        block #4
-        block #5
-        block #6
-        block #7
-        block #8
-        block #9 ;57
-        block 39 ;padding
-        block #0xa
-        block #0xb
-        block #0xc
-        block #0xd
-        block #0xe
-        block #0xf
-
-
-;line: draws a line
-;stack frame:
-;0 : return address
-;-1: y1 (final y)
-;-2: x1 (final x)
-;-3: y0 (original)
-;-4: x0 (original)
-
 linedx:     block 1
 linedy:     block 1
 linesx:     block 1
 linesy:     block 1
 lineerr:    block 1
 
-line:   load SP #-4 R0 ;R0 = x0
-        load SP #-3 R1 ;R1 = y0
-        load SP #-2 R2 ;R2 = x1
-        load SP #-1 R3 ;R3 = y1
+casel:  load SP #0 R1 ;check fill status
+        jumpn R1 main ;-1 = already filled, nothing to draw
+        store ONE #0 SP ;change fill status
+        
+        push MONE ;placeholder for x0
+        call gdi
+        push MONE ;placeholder for y0
+        call gdi
+        push MONE ;placeholder result for x1
+        call gdi
+        push MONE ;placeholder result for y1
+        call gdi
+        pop R3 ;y1
+        pop R2 ;x1
+        pop R1 ;y0
+        pop R0 ;x0
 
+        ;start line function
         ;dx = abs(x1-x0)
         ;if x0 < x1 then sx := 1 else sx := -1
         jumplt R0 R2 line0
@@ -289,12 +207,78 @@ line6:  ;setPixel
         store R5 #0x7c40 R6 ;R6 is displacement
 
         ;conditional
-        jumpneq R0 R2 line4 ;if x1 != x0
-        
-        ;if x1 == x0
+        jumpneq R0 R2 line4 ;loop if x1 != x0
         jumpneq R1 R3 line4 ;loop if y1 != y0
         ; exit loop
+        jump main
+
+
+        ; RECTANGLE
+caser:  load SP #0 R1 ;check fill status
+        jumpn R1 main ;-1 = already filled, nothing to draw
+        store ONE #0 SP ;change fill status
+        
+        push MONE ;placeholder for x
+        call gdi
+        push MONE ;placeholder for y
+        call gdi
+        push MONE ;placeholder width
+        call gdi
+        push MONE ;placeholder height
+        call gdi
+        call rect
+        pop MONE ;height
+        pop MONE ;width
+        pop MONE ;y
+        pop MONE ;x
+        jump main
+
+
+
+; FUNCTIONS
+
+;get double input (gdi): listens for two character inputs
+;as hex and joins them together into the return value
+;stack frame:
+;#0 : return address
+;#-1: return value
+
+gdi:    load #hextable R0
+        load #16 R3
+gdi1:   load 0xfff1 R1
+        jumpz R1 gdi1
+        load 0xfff0 R1 ;input character
+        add R0 R1 R1 ;hextable + input char offset
+        load R1 R1 ;get char value
+        mult R3 R1 R1
+gdi2:   load 0xfff1 R2
+        jumpz R2 gdi2
+        load 0xfff0 R2 ;next input character
+        add R0 R2 R2 ;hextable + input char offset
+        load R2 R2 ;get char value
+        add R1 R2 R1
+        store R1 #-1 SP
         return
+
+hextable:
+        block 48 ;padding
+        block #0
+        block #1
+        block #2
+        block #3
+        block #4
+        block #5
+        block #6
+        block #7
+        block #8
+        block #9 ;57
+        block 39 ;padding
+        block #0xa
+        block #0xb
+        block #0xc
+        block #0xd
+        block #0xe
+        block #0xf
 
 
 ;draws a rectangle at x, y, with width and height
