@@ -327,77 +327,89 @@ rectxposblock:  block 1  ;xpos relative to block
 rectspotsleft:  block 1  ;32 - xpos block pos
 rectyposblock:  block 1  ;y + height block (no x value)
 
-rect:   load SP #-4 R0
-        store R0 rectxpos
-        load SP #-2 R0
-        store R0 rectwidth
-        
-        load SP #-3 R0 ;R0 = orig ypos
+
+rect:   load SP #-3 R0 ;R0 = orig ypos
         load SP #-1 R1 ;R1 = height of rectangle
         add R0 R1 R0 ;R0 = ypos + height
-        load #6 R2
-        mult R0 R2 R2 ;R2 = 6 * y
-        store R2 rectyposblock
+        sub R0 ONE R0 ;height -= 1 so we can jumpz
+        load #6 R1
+        mult R0 R1 R0 ;R0 = 6 * y
+        
+        load SP #-4 R1 ;R1 = xpos
+        load #32 R2 ;R2 = 32
+        div R1 R2 R3 ;xpos / 32
+        add R3 R0 R0 ;R0 = (y pos) + (x / 32)
+        store R0 rectcurrblock ;R0 = currblock
 
-rectloop:
-        load rectyposblock R2
-        load rectxpos R1 ;R1 = xpos
-        load #32 R3 ;R3 = 32
-        div R1 R3 R4 ;R4 = xpos / 32
-        add R2 R4 R4 ;R4 = (y pos) + (x / 32) 
-        store R4 rectcurrblock
+        mod R1 R2 R3 ;R3 = xpos % 32 ; x starting point
+        sub R2 R3 R1 ;R1 = 32 - x starting point = number of spots left over
 
-        mod R1 R3 R5 ;R5 = xpos % 32
-        store R5 rectxposblock
-        sub R3 R5 R5 ;R5 = number of spots left over
-        store R5 rectspotsleft
+        ;R0 = currblock, R1 = spots left over, R2 = 32, R3 = x % 32
+
         ;check if width is greater than spots left over
-        load rectwidth R6 ;R6 = width
-        jumpgt R6 R5 rectwidthoverspots ;width > spots
-        jumpgt R6 ZERO rectusebpm;jump if 0 < width <= spots left
-        return ;width is <= 0
-rectwidthoverspots:
-        jumpeq R5 R3 rect32 ;jump if spots left = 32
-        move R5 R6 ;replace width with spots left
-rectusebpm:
-        push R6 ;push width
-        call bpm
-        pop R6 ;bit pattern of size width
-        load rectxposblock R0
-        rotate R0 R6 R6 ;shifted bit pattern
-        jump rectinit
-rect32:
-        move MONE R6
-rectinit:
-        load rectcurrblock R1
-        load #6 R2
-        load SP #-1 R0 ;orig height
-rectdrawheight:
-        sub R1 R2 R1 ;current block - 6
-        sub R0 ONE R0
-        store R6 #0x7c40 R1
-        jumpz R0 rectnextloop
-        jump rectdrawheight
-rectnextloop:
-        load rectwidth R0
-        load rectspotsleft R1
-        sub R0 R1 R0
-        store R0 rectwidth ;width -= spotsleft
-        load rectxpos R0
-        add R0 R1 R0 ;xpos += spotsleft
-        store R0 rectxpos
-        jump rectloop
+        load SP #-2 R4 ;R4 = width
+        load #bpmtable R5 ;R5 = bpm table
+        jumpgt R4 R1 rectdoesntfit ;width > spots
+        move R4 R1 ;move width into spots left
+rectdoesntfit:
+        ;okay so width > spots
+        sub R4 R1 R4 ;width -= spots left
+        add R1 R5 R1 ;R1 = spots left + bpmtable address
+        load R1 R1 ;R1 = bpm pattern
+        rotate R3 R1 R1 ;R1 = rotated bit pattern
+        load SP #-1 R3 ;R3 = height
+        load #6 R6
+        ;R0 = currblock, R1 = bit pattern, R2 = 32, R3 = height
+        ;R4 = width, R6 = 6
 
-;bit pattern maker (bpm): takes an integer x and turns it into a 32 bit pattern of x 1s right aligned.
-;stack frame:
-;#0 : return address
-;#-1: input integer e.g. 4 -> return value e.g. 0000000...1111
+rectfirstblock:
+        load R0 #0x7c40 R5 ;R5 = original bit pattern
+        or R1 R5 R5 ;R5 = new bit pattern
+        store R5 #0x7c40 R0 ;R0 is displacement
+        sub R0 R6 R0 ;displacement - 6
+        sub R3 ONE R3 ;height -= 1
+        jumpnz R3 rectfirstblock
+        jumpz R4 rectend ;return if width is zero 
 
-bpm:    load SP #-1 R1
-        load #bpmtable R2
-        add R1 R2 R2
-        load R2 R3
-        store R3 #-1 SP
+        ;okay so the first part has been drawn
+        load rectcurrblock R0
+        add R0 ONE R0
+        store R0 rectcurrblock
+
+        ;we need a while width > 32 loop
+        jump rectcheck
+rectfillmid:
+        load SP #-1 R3 ;R3 = height
+rectdothefill:
+        store MONE #0x7c40 R0
+        sub R0 R6 R0 ;displacement - 6
+        sub R3 ONE R3 ;height -= 1
+        jumpnz R3 rectdothefill
+        
+        ; okay so we drew a block
+        sub R4 R2 R4 ;width -= 32
+        load rectcurrblock R0
+        add R0 ONE R0
+        store R0 rectcurrblock
+
+rectcheck:
+        jumpgt R4 R2 rectfillmid ;jump if width > 32
+
+        ;okay so now width is < 32
+        load #bpmtable R1 ;R5 = bpm table
+        add R4 R1 R1 ;R1 = spots left + bpmtable address
+        load R1 R1 ;R1 = bpm pattern
+        load SP #-1 R3 ;R3 = height
+        ;R0 = currblock, R1 = bit pattern, R2 = 32, R3 = height
+        ;R4 = width, R6 = 6
+rectfinal:
+        load R0 #0x7c40 R5 ;R5 = original bit pattern
+        or R1 R5 R5 ;R5 = new bit pattern
+        store R5 #0x7c40 R0 ;R0 is displacement
+        sub R0 R6 R0 ;displacement - 6
+        sub R3 ONE R3 ;height -= 1
+        jumpnz R3 rectfinal
+rectend:
         return
 
 bpmtable:
