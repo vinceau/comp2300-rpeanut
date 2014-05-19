@@ -58,7 +58,7 @@ mend
 0x0100: push ZERO ;fill status
         ;0 empty, -1 filled, 1 contains drawing
 main:   load 0xfff0 R0
-        jumpz main
+        jumpz R0 main
         move R0 PC
 done:   pop MONE ;remove fill status
         halt
