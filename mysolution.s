@@ -46,40 +46,20 @@ macro
     jumplte &reg2 &reg1 &label
 mend
 
+0x0063: jump casec ;c
+0x0066: jump casef ;f
+0x0068: jump done  ;h
+0x006c: jump casel ;l
+0x0070: jump casep ;p
+0x0072: jump caser ;r
+
 
 ; MAIN
 0x0100: push ZERO ;fill status
         ;0 empty, -1 filled, 1 contains drawing
-main:   load 0xfff1 R0
-        jumpz R0 main
-        load 0xfff0 R0 ;input character
-
-        ;case input = h
-        load #0x68 R1
-        jumpeq R0 R1 done
-
-        ;case input = f
-        load #0x66 R1
-        jumpeq R0 R1 casef
-
-        ;case input = c
-        load #0x63 R1
-        jumpeq R0 R1 casec
-
-        ;case input = p
-        load #0x70 R1
-        jumpeq R0 R1 casep
-
-        ;case input = l
-        load #0x6c R1
-        jumpeq R0 R1 casel
-
-        ;case input = r
-        load #0x72 R1
-        jumpeq R0 R1 caser
-
-        ;else
-        jump main
+main:   load 0xfff0 R0
+        move R0 PC
+        ;end main
 
         ; FILL
 casef:  load SP #0 R1 ;check fill status
