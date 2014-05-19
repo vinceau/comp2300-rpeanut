@@ -154,17 +154,16 @@ caser:  load SP #0 R1 ;check fill status
 ;#-2: xpos
 
 draw:   load SP #-1 R0 ;ypos
+        load #6 R1
+        mult R0 R1 R0 ;R0 = 6 * y
         load SP #-2 R1 ;xpos
-        load #6 R2
-        mult R0 R2 R0 ;R0 = 6 * y
         load #32 R2
-        div R1 R2 R3 ;R3 = x / 32
-        add R0 R3 R0 ;R0 = (6 * y) + (x / 32)
-        mod R1 R2 R2 ;R2 = x % 32
-        rotate R2 ONE R2
-        load R0 #0x7c40 R6 ;R6 = original bit pattern
-        or R6 R2 R6 ;R6 = new bit pattern
-        store R6 #0x7c40 R0 ;R0 is displacement
+        div R1 R2 R2 ;R2 = x / 32
+        add R0 R2 R0 ;R0 = (6 * y) + (x / 32)
+        rotate R1 ONE R1
+        load R0 #0x7c40 R2 ;R2 = original bit pattern
+        or R2 R1 R1 ;R1 = new bit pattern
+        store R1 #0x7c40 R0 ;R0 is displacement
         return
 
 
