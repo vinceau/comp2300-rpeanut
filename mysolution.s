@@ -97,9 +97,17 @@ casep:  load SP #0 R1 ;check fill status
         call gdi
         push MONE ;placeholder for y coord
         call gdi
-        call draw
-        pop MONE ;pop y coord
-        pop MONE ;pop x coord
+        pop R1 ;pop y coord
+        pop R0 ;pop x coord
+        load #6 R6
+        mult R6 R1 R6 ;R6 = 6 * y
+        load #32 R5
+        div R0 R5 R5 ;R5 = x / 32
+        add R6 R5 R6 ;R6 = (6 * y) + (x / 32)
+        rotate R0 ONE R5 ;R5 is bit pattern
+        load R6 #0x7c40 R4 ;R6 = displacement
+        or R4 R5 R5 ;R5 = new bit pattern
+        store R5 #0x7c40 R6 ;R6 is displacement
         jump main
 
         ; LINE
@@ -145,27 +153,6 @@ caser:  load SP #0 R1 ;check fill status
 
 
 ; FUNCTIONS
-
-;draws a point at position (xpos, ypos)
-;void draw(int xpos, int ypos)
-;stack frame:
-;#0 : return address
-;#-1: ypos
-;#-2: xpos
-
-draw:   load SP #-1 R0 ;ypos
-        load #6 R1
-        mult R0 R1 R0 ;R0 = 6 * y
-        load SP #-2 R1 ;xpos
-        load #32 R2
-        div R1 R2 R2 ;R2 = x / 32
-        add R0 R2 R0 ;R0 = (6 * y) + (x / 32)
-        rotate R1 ONE R1
-        load R0 #0x7c40 R2 ;R2 = original bit pattern
-        or R2 R1 R1 ;R1 = new bit pattern
-        store R1 #0x7c40 R0 ;R0 is displacement
-        return
-
 
 ;get double input (gdi): listens for two character inputs
 ;as hex and joins them together into the return value
