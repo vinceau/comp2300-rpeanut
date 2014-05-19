@@ -413,28 +413,45 @@ rectnextloop:
 ;#0 : return address
 ;#-1: input integer e.g. 4 -> return value e.g. 0000000...1111
 
-bpm:    load #16 R0
-        load SP #-1 R1 ;n
-        jumplt R1 R0 bpm0
-        ; n > 16
-        load #32 R0
-        sub R0 R1 R1 ;n = 32 - n
-        move MONE R0 ;R0 = -1 so negate it at the end
-
-bpm0:   load #2 R2 ;2
-        load #2 R3 ;R3 = answer
-        jumpnz R1 bpm2
-        move ZERO R3
-        jump bpm3
-       
-bpm1:   mult R2 R3 R3
-bpm2:   sub R1 ONE R1 ;index -= 1
-        jumpnz R1 bpm1
-        ;R3 = 2 ** n
-        sub R3 ONE R3 ;R3 = (2 ** n) - 1
-bpm3:   jumplt ZERO R0 bpm4 ;continue if negative
-        not R3 R3
-        load SP #-1 R1
-        rotate R1 R3 R3
-bpm4:   store R3 #-1 SP
+bpm:    load SP #-1 R1
+        load #bpmtable R2
+        add R1 R2 R2
+        load R2 R3
+        store R3 #-1 SP
         return
+
+bpmtable:
+        block #0
+        block #0x1
+        block #0x3
+        block #0x7
+        block #0xf
+        block #0x1f
+        block #0x3f
+        block #0x7f
+        block #0xff
+        block #0x1ff
+        block #0x3ff
+        block #0x7ff
+        block #0xfff
+        block #0x1fff
+        block #0x3fff
+        block #0x7fff
+        block #0xffff
+        block #0x1ffff
+        block #0x3ffff
+        block #0x7ffff
+        block #0xfffff
+        block #0x1fffff
+        block #0x3fffff
+        block #0x7fffff
+        block #0xffffff
+        block #0x1ffffff
+        block #0x3ffffff
+        block #0x7ffffff
+        block #0xfffffff
+        block #0x1fffffff
+        block #0x3fffffff
+        block #0x7fffffff
+        block #0xffffffff
+
