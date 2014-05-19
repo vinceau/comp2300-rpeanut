@@ -227,15 +227,16 @@ lineerr:    block 1
 
 line:   load SP #-4 R0 ;R0 = x0
         load SP #-3 R1 ;R1 = y0
-        
+        load SP #-2 R2 ;R2 = x1
+        load SP #-1 R3 ;R3 = y1
+
         ;dx = abs(x1-x0)
-        load SP #-2 R5 ;R5 = x1
         ;if x0 < x1 then sx := 1 else sx := -1
-        jumplt R0 R5 line0
+        jumplt R0 R2 line0
         store MONE linesx
         jump line1
 line0:  store ONE linesx
-line1:  sub R5 R0 R6 ;R6 = x1 - x0
+line1:  sub R2 R0 R6 ;R6 = x1 - x0
         ;abs(x1 - x0)
         sub ZERO R6 R5 ;-(x1 - x0)
         jumpn R5 linestoredx
@@ -243,13 +244,12 @@ line1:  sub R5 R0 R6 ;R6 = x1 - x0
 linestoredx:
         store R6 linedx ;update dx
         ;dy = abs(y1 - y0)
-        load SP #-1 R5 ;R5 = y1
         ;if y0 < y1 then sy := 1 else sy := -1
-        jumplt R1 R5 line2
+        jumplt R1 R3 line2
         store MONE linesy
         jump line3
 line2:  store ONE linesy
-line3:  sub R5 R1 R6 ;R6 = y1 - y0
+line3:  sub R3 R1 R6 ;R6 = y1 - y0
         ;abs(y1 - y0)
         sub ZERO R6 R5
         jumpn R5 linestoredy
@@ -274,8 +274,8 @@ line4:  load lineerr R6 ;R6 = err
         store R4 lineerr ;update err
 
         ;x0 := x0 + sx
-        load linesx R3 ;R3 = sx
-        add R0 R3 R0 ;R4 = x0 + sx
+        load linesx R6 ;R6 = sx
+        add R0 R6 R0 ;R4 = x0 + sx
         
         ;if e2 < dx
 line5:  load lineerr R6 ;R6 = err
@@ -291,23 +291,21 @@ line5:  load lineerr R6 ;R6 = err
 
         ;loop again
 line6:  ;setPixel
-        load #6 R2
-        mult R2 R1 R2 ;R2 = 6 * y
-        load #32 R3
-        div R0 R3 R3 ;R3 = x / 32
-        add R2 R3 R2 ;R2 = (6 * y) + (x / 32)
-        rotate R0 ONE R3 ;R3 is bit pattern
-        load R2 #0x7c40 R4 ;R2 = existing bit pattern
-        or R4 R3 R3 ;R3 = new bit pattern
-        store R3 #0x7c40 R2 ;R2 is displacement
+        load #6 R6
+        mult R6 R1 R6 ;R6 = 6 * y
+        load #32 R5
+        div R0 R5 R5 ;R5 = x / 32
+        add R6 R5 R6 ;R6 = (6 * y) + (x / 32)
+        rotate R0 ONE R5 ;R5 is bit pattern
+        load R6 #0x7c40 R4 ;R6 = displacement
+        or R4 R5 R5 ;R5 = new bit pattern
+        store R5 #0x7c40 R6 ;R6 is displacement
 
         ;conditional
-        load SP #-2 R5 ;R5 = x1
-        jumpneq R0 R5 line4 ;if x1 != x0
+        jumpneq R0 R2 line4 ;if x1 != x0
         
         ;if x1 == x0
-        load SP #-1 R5 ;R5 = y1
-        jumpneq R1 R5 line4 ;loop if y1 != y0
+        jumpneq R1 R3 line4 ;loop if y1 != y0
         ; exit loop
         return
 
